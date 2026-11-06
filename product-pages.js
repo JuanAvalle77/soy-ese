@@ -7,12 +7,13 @@ function initialVariants(p){
   if(!sizes.length&&!colors.length)return [];
   return (colors.length?colors:['']).flatMap(color=>(sizes.length?sizes:['']).flatMap(size=>(materials.length?materials:['']).map(material=>({id:uid(),color,size,material,price:'',available:true,image:''}))));
 }
-if(data.productPageVersion!==1){
+// Completa datos de versiones anteriores; se guarda con el próximo cambio de la administradora.
+function migrate(){
+  if(data.productPageVersion===1)return;
   data.products.forEach(p=>{if(!Array.isArray(p.variants))p.variants=initialVariants(p)});
-  if(!Array.isArray(data.settings.paymentMethods))data.settings.paymentMethods=['Binance','Zelle','Pago Móvil','PayPal'].map(name=>({id:uid(),name,enabled:true,details:''}));
+  if(!Array.isArray(data.settings.paymentMethods))data.settings.paymentMethods=['Pago Móvil','Binance','Zinli','AirTM'].map(name=>({id:uid(),name,enabled:true,details:''}));
   if(!data.settings.delivery)data.settings.delivery={name:'Yummy',enabled:true,details:'Cobertura y costo de entrega a coordinar.'};
   data.productPageVersion=1;
-  try{localStorage.setItem(KEY,JSON.stringify(data))}catch{}
 }
 function routeFromHash(){
   const hash=location.hash.slice(1);
@@ -26,7 +27,7 @@ function routeFromHash(){
 function variantMatches(v,selection){return ['color','size','material'].every(key=>!selection[key]||v[key]===selection[key])}
 function productPayments(){
  const methods=(data.settings.paymentMethods||[]).filter(m=>m.enabled),delivery=data.settings.delivery;
- return `<section class="payment-section"><h2>Pago y entrega</h2>${methods.length?`<div class="payment-tags">${methods.map(m=>`<span>${esc(m.name)}</span>`).join('')}</div>${methods.filter(m=>m.details).map(m=>`<details><summary>${esc(m.name)}</summary><p>${esc(m.details)}</p></details>`).join('')}`:'<p>Los métodos de pago están por confirmar.</p>'}${delivery?.enabled?`<h3>Entrega con ${esc(delivery.name)}</h3><p>${esc(delivery.details||'Consulta las condiciones de entrega.')}</p>`:''}<p class="help">Opciones informativas. No se realizan cobros ni se solicita delivery desde esta demo.</p></section>`;
+ return `<section class="payment-section"><h2>Pago y entrega</h2>${methods.length?`<div class="payment-tags">${methods.map(m=>`<span>${esc(m.name)}</span>`).join('')}</div>${methods.filter(m=>m.details).map(m=>`<details><summary>${esc(m.name)}</summary><p>${esc(m.details)}</p></details>`).join('')}`:'<p>Los métodos de pago están por confirmar.</p>'}${delivery?.enabled?`<h3>Entrega con ${esc(delivery.name)}</h3><p>${esc(delivery.details||'Consulta las condiciones de entrega.')}</p>`:''}<p class="help">El pago y la entrega se confirman por WhatsApp al enviar tu pedido.</p></section>`;
 }
 function renderProductPage(){
  const p=data.products.find(p=>p.id===productId&&p.status==='published');
@@ -42,7 +43,8 @@ function renderProductPage(){
  const displayImage=variant?.image||colorImage;
  const shown={...p,image:displayImage||p.image};
  const price=variant&&variant.price!==''&&variant.price!=null?Number(variant.price):p.price;
- $('#app').innerHTML=`<article class="product-page"><nav class="breadcrumbs" aria-label="Ruta del producto"><a href="#inicio">Inicio</a><span>/</span><a href="#catalogo">Catálogo</a><span>/</span><span>${esc(p.name)}</span></nav><div class="product-layout"><div class="product-visual">${photo(shown)}<p class="help">${displayImage?'Foto de la variante seleccionada.':'Foto general del diseño. Las variantes sin foto propia usan esta imagen de referencia.'}</p></div><div class="product-info"><span class="eyebrow">${esc(cat(p.category)?.name)}</span><h1>${esc(p.name)}</h1><span class="price">${money(price)}</span><p>${esc(p.description)}</p>${dimensions.map(([key,label])=>`<fieldset class="variant-group"><legend>${label}${selectedVariant[key]?`: ${esc(selectedVariant[key])}`:''}</legend><div class="variant-options">${[...new Set(variants.map(v=>v[key]).filter(Boolean))].map(value=>`<button type="button" class="variant-option" data-dimension="${key}" data-value="${esc(value)}" aria-pressed="${selectedVariant[key]===value}">${esc(value)}</button>`).join('')}</div></fieldset>`).join('')}<div class="selection-box" role="status" aria-live="polite"><strong>${!p.available?'Producto agotado':variants.length&&!complete?'Elige tus opciones':available?'Disponible':'Combinación no disponible'}</strong>${dimensions.length?esc(dimensions.map(([key,label])=>`${label}: ${selectedVariant[key]||'sin elegir'}`).join(' · ')):'Este producto no tiene variantes.'}${complete&&variants.length&&!variant?'<br>Prueba otra combinación de color, talle o material.':''}</div><dl>${(cat(p.category)?.fields||[]).filter(f=>p.values[f.id]&&!['size','color','material'].includes(f.id)).map(f=>`<dt>${esc(f.name)}</dt><dd>${esc(p.values[f.id])}</dd>`).join('')}${!dimensions.some(([key])=>key==='material')&&p.values.material?`<dt>Material</dt><dd>${esc(p.values.material)}</dd>`:''}</dl>${productPayments()}</div></div></article>`;
+ $('#app').innerHTML=`<article class="product-page"><nav class="breadcrumbs" aria-label="Ruta del producto"><a href="#inicio">Inicio</a><span>/</span><a href="#catalogo">Catálogo</a><span>/</span><span>${esc(p.name)}</span></nav><div class="product-layout"><div class="product-visual">${photo(shown)}<p class="help">${displayImage?'Foto de la variante seleccionada.':'Foto general del diseño. Las variantes sin foto propia usan esta imagen de referencia.'}</p></div><div class="product-info"><span class="eyebrow">${esc(cat(p.category)?.name)}</span><h1>${esc(p.name)}</h1><span class="price">${money(price)}</span><p>${esc(p.description)}</p>${dimensions.map(([key,label])=>`<fieldset class="variant-group"><legend>${label}${selectedVariant[key]?`: ${esc(selectedVariant[key])}`:''}</legend><div class="variant-options">${[...new Set(variants.map(v=>v[key]).filter(Boolean))].map(value=>`<button type="button" class="variant-option" data-dimension="${key}" data-value="${esc(value)}" aria-pressed="${selectedVariant[key]===value}">${esc(value)}</button>`).join('')}</div></fieldset>`).join('')}<div class="selection-box" role="status" aria-live="polite"><strong>${!p.available?'Producto agotado':variants.length&&!complete?'Elige tus opciones':available?'Disponible':'Combinación no disponible'}</strong>${dimensions.length?esc(dimensions.map(([key,label])=>`${label}: ${selectedVariant[key]||'sin elegir'}`).join(' · ')):'Este producto no tiene variantes.'}${complete&&variants.length&&!variant?'<br>Prueba otra combinación de color, talle o material.':''}</div>${available&&(complete||!variants.length)?'<button type="button" class="button add-to-cart" id="add-to-cart">Agregar al pedido</button>':''}<dl>${(cat(p.category)?.fields||[]).filter(f=>p.values[f.id]&&!['size','color','material'].includes(f.id)).map(f=>`<dt>${esc(f.name)}</dt><dd>${esc(p.values[f.id])}</dd>`).join('')}${!dimensions.some(([key])=>key==='material')&&p.values.material?`<dt>Material</dt><dd>${esc(p.values.material)}</dd>`:''}</dl>${productPayments()}</div></div></article>`;
+ if($('#add-to-cart'))$('#add-to-cart').onclick=()=>addToCart(p,variant);
  document.querySelectorAll('[data-dimension]').forEach(b=>b.onclick=()=>{
    const key=b.dataset.dimension;selectedVariant[key]=b.dataset.value;
    if(key==='color'&&!variants.some(v=>variantMatches(v,selectedVariant))){selectedVariant.size='';selectedVariant.material=''}
@@ -62,7 +64,7 @@ function variantEditor(id){
  const file=el.files[0];if(!file)return;
  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>8*1024*1024){notify('Usa JPG, PNG o WebP de hasta 8 MB.');el.value='';return}
  const v=variants[Number(el.dataset.photoIndex)];pending++;$('#save-variants').disabled=true;
- try{v.image=await prepareImage(file)}catch{notify('No se pudo cargar la foto.')}finally{pending--;if($('#save-variants')){$('#save-variants').disabled=pending>0;rows()}}
+ try{v.image=await storeImage(file)}catch{notify('No se pudo cargar la foto.')}finally{pending--;if($('#save-variants')){$('#save-variants').disabled=pending>0;rows()}}
  });
  }
  rows();$('#add-variant').onclick=()=>{variants.push({id:uid(),color:'',size:'',material:'',price:'',available:true,image:''});rows()};$('#cancel-variants').onclick=()=>$('#dialog').close();
@@ -76,7 +78,7 @@ function variantEditor(id){
  if(new Set(keys).size!==keys.length){notify('Hay combinaciones repetidas. Cada variante debe ser única.');return}
  const next=structuredClone(data),p=next.products.find(p=>p.id===id);p.variants=clean;
  for(const key of ['size','color','material']){if(used.includes(key))p.values[key]=[...new Set(clean.map(v=>v[key]))].join(', ')}
- if(commit(next,'Variantes guardadas.'))$('#dialog').close();
+ commit(next,'Variantes guardadas.').then(ok=>ok&&$('#dialog').close());
  };
 }
 function adminPayments(){
@@ -89,4 +91,9 @@ function adminPayments(){
  }rows();$('#add-payment').onclick=()=>{methods.push({id:uid(),name:'',enabled:true,details:''});rows()};
  $('#payment-form').onsubmit=e=>{e.preventDefault();const form=e.target;methods.forEach(m=>{m.name=m.name.trim();m.details=m.details.trim()});if(methods.some(m=>!m.name)){notify('Completa los nombres de los métodos.');return}if(new Set(methods.map(m=>m.name.toLowerCase())).size!==methods.length){notify('Los métodos deben tener nombres diferentes.');return}delivery={name:form.elements.deliveryName.value.trim(),enabled:form.elements.deliveryEnabled.checked,details:form.elements.deliveryDetails.value.trim()};if(delivery.enabled&&!delivery.name){notify('Escribe el nombre del servicio de entrega.');return}const next=structuredClone(data);next.settings.paymentMethods=methods;next.settings.delivery=delivery;commit(next,'Pagos y entrega guardados.')};
 }
-routeFromHash();
+async function boot(){
+ $('#app').innerHTML='<div class="empty-state">Cargando catálogo…</div>';
+ try{const saved=await store.load();if(validData(saved))data=saved}catch{notify('No se pudo cargar el catálogo. Revisa tu conexión y recarga la página.')}
+ migrate();renderCartButton();routeFromHash();
+}
+boot();
