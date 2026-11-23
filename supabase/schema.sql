@@ -52,6 +52,15 @@ drop policy if exists "admin cambia estado" on public.orders;
 create policy "admin cambia estado" on public.orders for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+-- Permisos de la API (por si el proyecto no los da automáticamente). RLS sigue decidiendo qué filas ve cada uno.
+-- admins no se expone: solo la lee is_admin().
+grant usage on schema public to anon, authenticated;
+grant select on public.store to anon, authenticated;
+grant update on public.store to authenticated;
+grant select, insert, update on public.orders to authenticated;
+revoke all on public.admins from anon, authenticated;
+grant execute on function public.is_admin() to anon, authenticated;
+
 -- Fotos de productos: lectura pública, subida solo para admins.
 insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true)
 on conflict (id) do nothing;
