@@ -3,3 +3,5 @@ node_modules/
 .vercel/
 # Datos de pago y emails: se cargan en Supabase, no van al repositorio público
 supabase/datos-privados.sql
+# Admin de prueba y datos de la tienda para el modo local
+local-config.json

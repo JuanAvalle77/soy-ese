@@ -30,6 +30,28 @@ create policy "solo admin edita" on public.store for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 -- admins no tiene políticas: nadie la lee ni la modifica desde la web.
 
+-- Pedidos de clientes con cuenta (los clientes se registran desde la web; el nombre y teléfono van en user_metadata).
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  status text not null default 'pendiente' check (status in ('pendiente', 'pagado', 'entregado', 'cancelado')),
+  data jsonb not null
+);
+alter table public.orders enable row level security;
+
+drop policy if exists "cliente crea sus pedidos" on public.orders;
+create policy "cliente crea sus pedidos" on public.orders for insert to authenticated
+  with check (user_id = auth.uid() and status = 'pendiente');
+
+drop policy if exists "cliente ve sus pedidos, admin todos" on public.orders;
+create policy "cliente ve sus pedidos, admin todos" on public.orders for select to authenticated
+  using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "admin cambia estado" on public.orders;
+create policy "admin cambia estado" on public.orders for update to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
 -- Fotos de productos: lectura pública, subida solo para admins.
 insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true)
 on conflict (id) do nothing;

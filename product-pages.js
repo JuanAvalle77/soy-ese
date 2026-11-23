@@ -20,6 +20,8 @@ function routeFromHash(){
   if(hash.startsWith('producto/')){
     try{productId=decodeURIComponent(hash.slice(9))}catch{productId=''}
     mode='product';selectedVariant={color:'',size:'',material:''};render();window.scrollTo({top:0,behavior:'instant'});
+  }else if(hash==='cuenta'||hash==='admin'){
+    mode=hash==='cuenta'?'account':'admin';render();window.scrollTo({top:0,behavior:'instant'});
   }else if(['inicio','catalogo','contacto',''].includes(hash)){
     mode='catalog';render();document.getElementById(hash||'inicio')?.scrollIntoView({block:'start'});setActiveNav(hash||'inicio');
   }else{mode='catalog';render();setActiveNav('inicio')}
@@ -93,7 +95,7 @@ function adminPayments(){
 }
 async function boot(){
  $('#app').innerHTML='<div class="empty-state">Cargando catálogo…</div>';
- try{const saved=await store.load();if(validData(saved))data=saved}catch{notify('No se pudo cargar el catálogo. Revisa tu conexión y recarga la página.')}
+ try{const saved=await store.load();if(validData(saved))data=saved;else if(store.localSettings)Object.assign(data.settings,store.localSettings)}catch{notify('No se pudo cargar el catálogo. Revisa tu conexión y recarga la página.')}
  migrate();renderCartButton();routeFromHash();
 }
 boot();
